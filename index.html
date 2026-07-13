@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>지구온난화 시뮬레이터 — 온실효과가 지구를 데우는 과정</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-space:#070c16;
+    --bg-deep:#0b1526;
+    --atmo:#123252;
+    --atmo-light:#1c4468;
+    --sun:#ffb454;
+    --sun-glow:#ffdca0;
+    --heat:#e8543e;
+    --heat-soft:#ff8a6b;
+    --cool:#6fcf97;
+    --cool-soft:#a6ecc0;
+    --paper:#f3efe6;
+    --paper-dim:#b9b3a3;
+    --ink:#0b1220;
+    --co2dot:#8fe0a8;
+    --line:rgba(243,239,230,0.14);
+    --display: 'Fraunces', 'Noto Serif KR', serif;
+    --body: 'Inter', 'Noto Sans KR', sans-serif;
+    --mono: 'IBM Plex Mono', 'Noto Sans KR', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg-space);
+    color:var(--paper);
+    font-family:var(--body);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  a{color:var(--cool-soft);}
+
+  .site-header{
+    padding:20px clamp(20px,5vw,64px);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:0.06em;
+    color:var(--paper-dim);
+    text-transform:uppercase;
+  }
+  .brand b{color:var(--paper);}
+
+  main{max-width:1080px;margin:0 auto;padding:0 clamp(20px,5vw,64px);}
+
+  section{padding:64px 0;}
+  .hero{padding-top:56px;}
+
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--cool-soft);
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(32px,5.4vw,58px);
+    line-height:1.12;
+    letter-spacing:-0.01em;
+    margin:0 0 22px;
+    max-width:14ch;
+  }
+  .lede{
+    font-size:17px;
+    color:#d8d3c6;
+    max-width:56ch;
+    margin:0 0 40px;
+  }
+
+  h2{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(24px,3.4vw,34px);
+    letter-spacing:-0.01em;
+    margin:0 0 36px;
+  }
+
+  /* ---------- Simulation layout ---------- */
+  .sim-layout{
+    display:grid;
+    grid-template-columns:1fr 250px;
+    gap:16px;
+    align-items:stretch;
+  }
+  .sim-canvas-wrap{
+    position:relative;
+    background:linear-gradient(180deg,var(--bg-space) 0%, var(--bg-deep) 60%);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  #simCanvas{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+  .sim-caption{
+    position:absolute;
+    left:16px;
+    bottom:14px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:rgba(243,239,230,0.55);
+    letter-spacing:0.02em;
+  }
+
+  .readout-panel{
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .readout{display:flex;flex-direction:column;gap:4px;}
+  .readout .label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--paper-dim);
+  }
+  .readout .value{
+    font-family:var(--mono);
+    font-size:28px;
+    font-weight:600;
+    color:var(--paper);
+    font-variant-numeric:tabular-nums;
+  }
+  .readout .value small{font-size:14px;color:var(--paper-dim);font-weight:400;}
+  #tempValue.warm{color:var(--heat-soft);}
+  #tempValue.cool{color:var(--cool-soft);}
+  .readout-note{
+    margin-top:auto;
+    font-size:12px;
+    color:var(--paper-dim);
+    border-top:1px solid var(--line);
+    padding-top:14px;
+  }
+
+  /* ---------- Controls ---------- */
+  .controls{
+    margin-top:22px;
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .control-row{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .control-row label, .control-label{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--paper-dim);
+    white-space:nowrap;
+  }
+  input[type="range"]{
+    flex:1;
+    min-width:160px;
+    -webkit-appearance:none;
+    height:4px;
+    background:linear-gradient(90deg,var(--cool),var(--sun),var(--heat));
+    border-radius:2px;
+    outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--paper);
+    border:3px solid var(--ink);
+    cursor:pointer;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;
+    background:var(--paper);
+    border:3px solid var(--ink);
+    cursor:pointer;
+  }
+  #playBtn{
+    font-family:var(--mono);
+    font-size:13px;
+    background:var(--cool);
+    color:var(--ink);
+    border:none;
+    padding:9px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    transition:transform 0.15s ease, background 0.2s ease;
+  }
+  #playBtn:hover{transform:translateY(-1px);}
+  #playBtn.playing{background:var(--heat-soft);}
+
+  .scenario-toggle{display:flex;gap:8px;}
+  .scenario-btn{
+    font-family:var(--mono);
+    font-size:12px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--paper-dim);
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  .scenario-btn.active{
+    background:var(--paper);
+    color:var(--ink);
+    border-color:var(--paper);
+  }
+
+  /* ---------- Process steps ---------- */
+  .steps{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:20px;
+  }
+  .step{
+    border-top:2px solid var(--line);
+    padding-top:16px;
+  }
+  .step .num{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--cool-soft);
+    display:block;
+    margin-bottom:10px;
+  }
+  .step h3{
+    font-family:var(--display);
+    font-size:18px;
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  .step p{
+    font-size:14px;
+    color:#c9c4b6;
+    margin:0;
+  }
+
+  /* ---------- Graph ---------- */
+  .graph-section{padding-top:8px;}
+  .graph-wrap{
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+  }
+  #graphCanvas{display:block;width:100%;height:auto;}
+  .graph-legend{
+    display:flex;
+    gap:24px;
+    margin-top:14px;
+    flex-wrap:wrap;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--paper-dim);
+  }
+  .legend-item{display:flex;align-items:center;gap:8px;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  .note{
+    padding-top:0;
+    border-top:1px solid var(--line);
+  }
+  .note p{
+    font-size:13px;
+    color:var(--paper-dim);
+    max-width:70ch;
+  }
+
+  footer{
+    padding:32px clamp(20px,5vw,64px) 48px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--paper-dim);
+    text-align:center;
+  }
+
+  @media (max-width:760px){
+    .sim-layout{grid-template-columns:1fr;}
+    .steps{grid-template-columns:repeat(2,1fr);}
+    h1{max-width:none;}
+  }
+  @media (max-width:480px){
+    .steps{grid-template-columns:1fr;}
+  }
+
+  :focus-visible{outline:2px solid var(--cool-soft);outline-offset:2px;}
+
+  @media (prefers-reduced-motion: reduce){
+    * { animation-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <span class="brand">🌍 <b>지구온난화 시뮬레이터</b></span>
+  <span class="brand">교육용 모델</span>
+</header>
+
+<main>
+
+  <section class="hero">
+    <p class="eyebrow">지구 시스템 시뮬레이션</p>
+    <h1>지구는 어떻게,<br>그리고 왜 뜨거워지는가</h1>
+    <p class="lede">태양빛이 대기를 통과해 지표면을 데우고, 지표면이 다시 열을 방출합니다. 이 열의 일부는 대기 중 온실가스에 붙잡혀 지구 밖으로 빠져나가지 못합니다. 이산화탄소(CO₂) 농도를 직접 움직여 이 과정이 어떻게 달라지는지 확인해보세요.</p>
+
+    <div class="sim-layout">
+      <div class="sim-canvas-wrap">
+        <canvas id="simCanvas" width="900" height="520"></canvas>
+        <div class="sim-caption">노란 선 = 태양빛 · 초록 점 = 온실가스 분자 · 붉은 화살표 = 반사된 열</div>
+      </div>
+      <div class="readout-panel">
+        <div class="readout">
+          <span class="label">연도</span>
+          <span class="value" id="yearValue">1850</span>
+        </div>
+        <div class="readout">
+          <span class="label">대기 중 CO₂</span>
+          <span class="value" id="ppmValue">285<small> ppm</small></span>
+        </div>
+        <div class="readout">
+          <span class="label">지표 온도 변화</span>
+          <span class="value" id="tempValue">+0.0<small>°C</small></span>
+        </div>
+        <div class="readout-note">1850년(산업화 이전) 평균 대비 추정치</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-row">
+        <label for="yearSlider">연도 이동</label>
+        <input type="range" id="yearSlider" min="1850" max="2100" value="1850" step="1">
+        <button id="playBtn">▶ 재생</button>
+      </div>
+      <div class="control-row scenario-row">
+        <span class="control-label">2024년 이후 시나리오</span>
+        <div class="scenario-toggle" role="group" aria-label="미래 시나리오 선택">
+          <button class="scenario-btn active" data-scenario="bau" type="button">현재 추세 유지</button>
+          <button class="scenario-btn" data-scenario="mitigation" type="button">적극적 감축</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="process">
+    <h2>온실효과가 일어나는 4단계</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="num">01</span>
+        <h3>태양빛이 들어온다</h3>
+        <p>태양의 짧은 파장 빛(가시광선)은 대기를 대부분 그대로 통과해 지표면에 도달합니다.</p>
+      </div>
+      <div class="step">
+        <span class="num">02</span>
+        <h3>지표면이 데워진다</h3>
+        <p>지표면은 빛을 흡수해 온도가 올라가고, 그 에너지를 긴 파장의 적외선(열)으로 다시 내보냅니다.</p>
+      </div>
+      <div class="step">
+        <span class="num">03</span>
+        <h3>온실가스가 열을 붙잡는다</h3>
+        <p>CO₂, 메탄 같은 온실가스 분자는 이 적외선의 일부를 흡수했다가 사방으로 다시 방출합니다. 그중 일부가 지표로 되돌아옵니다.</p>
+      </div>
+      <div class="step">
+        <span class="num">04</span>
+        <h3>지구 평균 온도가 오른다</h3>
+        <p>온실가스 농도가 높아질수록 더 많은 열이 되돌아오고, 우주로 빠져나가는 열은 줄어 지구는 서서히 더워집니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="graph-section">
+    <h2>1850년부터 2100년까지, 온도는 이렇게 움직입니다</h2>
+    <div class="graph-wrap">
+      <canvas id="graphCanvas" width="1000" height="360"></canvas>
+      <div class="graph-legend">
+        <span class="legend-item"><span class="swatch" style="background:var(--cool-soft)"></span>관측된 온도 변화 (1850–2024)</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--sun)"></span>현재 추세 유지 시나리오</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--heat-soft);opacity:.8"></span>적극적 감축 시나리오</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="note">
+    <p>이 시뮬레이션은 온실효과의 원리를 직관적으로 보여주기 위해 단순화한 교육용 모델입니다. 온도 변화는 "CO₂ 농도가 두 배가 될 때마다 약 3°C 상승한다"는 단순화된 기후 민감도 공식으로 추정한 값이며, 실제 기후 시스템은 해양, 구름, 에어로졸, 되먹임 작용 등 훨씬 많은 요소가 상호작용합니다. 실제 관측·예측 데이터는 NOAA, NASA GISS, IPCC 보고서를 참고하세요.</p>
+  </section>
+
+</main>
+
+<footer>
+  Built as a static single-file demo · Free to fork on GitHub
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ 데이터: 역사적 CO2 농도(ppm), 대략값 ============ */
+  var historical = [
+    {year:1850, ppm:285},
+    {year:1900, ppm:295},
+    {year:1930, ppm:305},
+    {year:1950, ppm:311},
+    {year:1960, ppm:317},
+    {year:1970, ppm:326},
+    {year:1980, ppm:339},
+    {year:1990, ppm:354},
+    {year:2000, ppm:369},
+    {year:2010, ppm:390},
+    {year:2020, ppm:414},
+    {year:2024, ppm:422}
+  ];
+
+  var scenarios = {
+    bau: [
+      {year:2024, ppm:422},
+      {year:2040, ppm:478},
+      {year:2060, ppm:565},
+      {year:2080, ppm:665},
+      {year:2100, ppm:760}
+    ],
+    mitigation: [
+      {year:2024, ppm:422},
+      {year:2040, ppm:438},
+      {year:2060, ppm:418},
+      {year:2080, ppm:390},
+      {year:2100, ppm:360}
+    ]
+  };
+
+  var PRE_INDUSTRIAL_PPM = 285;
+  var CLIMATE_SENSITIVITY = 3.0; // °C per doubling of CO2 (단순화된 근사치)
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function getPPM(year, scenario){
+    var pts = historical;
+    if (year > 2024){
+      pts = historical.slice(0,-1).concat(scenarios[scenario]);
+    }
+    if (year <= pts[0].year) return pts[0].ppm;
+    if (year >= pts[pts.length-1].year) return pts[pts.length-1].ppm;
+    for (var i=0;i<pts.length-1;i++){
+      var a = pts[i], b = pts[i+1];
+      if (year >= a.year && year <= b.year){
+        var t = (year - a.year) / (b.year - a.year);
+        return lerp(a.ppm, b.ppm, t);
+      }
+    }
+    return pts[pts.length-1].ppm;
+  }
+
+  function getTempAnomaly(ppm){
+    return CLIMATE_SENSITIVITY * Math.log2(ppm / PRE_INDUSTRIAL_PPM);
+  }
+
+  /* ============ 상태 ============ */
+  var state = {
+    year: 1850,
+    scenario: 'bau',
+    playing: false
+  };
+
+  /* ============ DOM ============ */
+  var yearSlider = document.getElementById('yearSlider');
+  var playBtn = document.getElementById('playBtn');
+  var yearValueEl = document.getElementById('yearValue');
+  var ppmValueEl = document.getElementById('ppmValue');
+  var tempValueEl = document.getElementById('tempValue');
+  var scenarioBtns = document.querySelectorAll('.scenario-btn');
+
+  function updateReadouts(){
+    var ppm = getPPM(state.year, state.scenario);
+    var temp = getTempAnomaly(ppm);
+    yearValueEl.textContent = Math.round(state.year);
+    ppmValueEl.innerHTML = Math.round(ppm) + '<small> ppm</small>';
+    var sign = temp >= 0 ? '+' : '';
+    tempValueEl.innerHTML = sign + temp.toFixed(1) + '<small>°C</small>';
+    tempValueEl.classList.toggle('warm', temp > 0.6);
+    tempValueEl.classList.toggle('cool', temp <= 0.6);
+  }
+
+  yearSlider.addEventListener('input', function(){
+    state.year = parseFloat(yearSlider.value);
+    updateReadouts();
+  });
+
+  scenarioBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      scenarioBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.scenario = btn.getAttribute('data-scenario');
+      updateReadouts();
+    });
+  });
+
+  playBtn.addEventListener('click', function(){
+    state.playing = !state.playing;
+    playBtn.textContent = state.playing ? '⏸ 정지' : '▶ 재생';
+    playBtn.classList.toggle('playing', state.playing);
+  });
+
+  var lastTime = null;
+  var YEARS_PER_SECOND = 24;
+  function tickPlayback(dtSeconds){
+    if (!state.playing) return;
+    state.year += dtSeconds * YEARS_PER_SECOND;
+    if (state.year >= 2100){
+      state.year = 2100;
+      state.playing = false;
+      playBtn.textContent = '▶ 재생';
+      playBtn.classList.remove('playing');
+    }
+    yearSlider.value = state.year;
+    updateReadouts();
+  }
+
+  /* ============ 메인 시뮬레이션 캔버스 ============ */
+  var canvas = document.getElementById('simCanvas');
+  var ctx = canvas.getContext('2d');
+  var CW = canvas.width, CH = canvas.height;
+
+  var groundY = CH * 0.78;
+  var atmoTop = CH * 0.18;
+  var atmoBottom = CH * 0.42;
+
+  // CO2 분자 (온실가스 입자) - 위치는 매 프레임 밀도만큼 다시 배치
+  function molecule(seed){
+    var rnd = mulberry32(seed);
+    return {
+      x: rnd()*CW,
+      y: atmoTop + rnd()*(atmoBottom-atmoTop),
+      r: 2 + rnd()*2.4,
+      phase: rnd()*Math.PI*2,
+      speed: 0.4 + rnd()*0.6
+    };
+  }
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  var MAX_MOLECULES = 260;
+  var molecules = [];
+  for (var i=0;i<MAX_MOLECULES;i++) molecules.push(molecule(i+1));
+
+  // IR 광자(열) 파티클
+  var photons = [];
+  var photonSpawnAcc = 0;
+
+  function spawnPhoton(){
+    photons.push({
+      x: 40 + Math.random()*(CW-80),
+      y: groundY,
+      dir: -1, // -1 위로, 1 아래로
+      state: 'rising', // rising | reflected | escaping
+      speed: 60 + Math.random()*20,
+      age: 0
+    });
+  }
+
+  function colorMix(c1, c2, t){
+    // c1, c2: [r,g,b]
+    return [
+      Math.round(lerp(c1[0],c2[0],t)),
+      Math.round(lerp(c1[1],c2[1],t)),
+      Math.round(lerp(c1[2],c2[2],t))
+    ];
+  }
+
+  var COOL_RGB = [111,207,151];
+  var WARM_RGB = [232,84,62];
+
+  function drawSim(dtSeconds, ppm, temp){
+    ctx.clearRect(0,0,CW,CH);
+
+    // 배경 하늘 그라디언트 (온도에 따라 살짝 변화)
+    var warmT = Math.max(0, Math.min(1, temp/4));
+    var skyTop = colorMix([7,12,22],[26,10,10],warmT*0.4);
+    var skyBottom = colorMix([18,32,52],[46,22,18],warmT*0.5);
+    var grad = ctx.createLinearGradient(0,0,0,CH);
+    grad.addColorStop(0, 'rgb('+skyTop.join(',')+')');
+    grad.addColorStop(1, 'rgb('+skyBottom.join(',')+')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,CW,CH);
+
+    // 우주 별
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (var s=0;s<40;s++){
+      var sx = (s*97) % CW;
+      var sy = (s*53) % (atmoTop*0.9);
+      ctx.globalAlpha = 0.15 + 0.5*Math.abs(Math.sin(s + performance.now()*0.0005));
+      ctx.fillRect(sx, sy, 1.6, 1.6);
+    }
+    ctx.globalAlpha = 1;
+
+    // 태양
+    var sunX = CW*0.12, sunY = CH*0.14, sunR = 34;
+    var sunGrad = ctx.createRadialGradient(sunX,sunY,2,sunX,sunY,sunR*3);
+    sunGrad.addColorStop(0,'rgba(255,220,160,0.9)');
+    sunGrad.addColorStop(1,'rgba(255,220,160,0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath(); ctx.arc(sunX,sunY,sunR*3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffb454';
+    ctx.beginPath(); ctx.arc(sunX,sunY,sunR,0,Math.PI*2); ctx.fill();
+
+    // 태양빛 (짧은 파장) - 대각선으로 지표까지
+    var t = performance.now()*0.001;
+    ctx.strokeStyle = 'rgba(255,180,84,0.55)';
+    ctx.lineWidth = 1.4;
+    var rayCount = 7;
+    for (var r=0;r<rayCount;r++){
+      var startX = sunX + 10 + r*24;
+      var startY = sunY + 20 + r*4;
+      var endX = startX + (CW*0.5);
+      var endY = groundY - 6;
+      ctx.setLineDash([6,7]);
+      ctx.lineDashOffset = -t*40;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // 대기 중 온실가스 밀도 (분자 개수)
+    var density = Math.max(0, Math.min(1, (ppm-280)/(760-280)));
+    var activeCount = Math.max(6, Math.round(density * MAX_MOLECULES));
+    var bounceRatio = Math.max(0.08, Math.min(0.88, 0.1 + density*0.85));
+
+    // 대기층 배경 밴드
+    var bandAlpha = 0.10 + density*0.22;
+    ctx.fillStyle = 'rgba(90,200,140,'+bandAlpha.toFixed(3)+')';
+    ctx.fillRect(0, atmoTop, CW, atmoBottom-atmoTop);
+    ctx.strokeStyle = 'rgba(143,224,168,0.25)';
+    ctx.strokeRect(0, atmoTop, CW, atmoBottom-atmoTop);
+
+    // 분자 그리기
+    ctx.fillStyle = '#8fe0a8';
+    for (var m=0; m<activeCount; m++){
+      var mol = molecules[m];
+      var yy = mol.y + Math.sin(t*mol.speed + mol.phase)*6;
+      var xx = mol.x + Math.cos(t*mol.speed*0.6 + mol.phase)*8;
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.arc(xx, yy, mol.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // 지표면
+    var groundGrad = ctx.createLinearGradient(0,groundY,0,CH);
+    var groundColor = colorMix(COOL_RGB, WARM_RGB, Math.max(0,Math.min(1,temp/3.5)));
+    groundGrad.addColorStop(0, 'rgb('+groundColor.join(',')+')');
+    groundGrad.addColorStop(1, 'rgb('+Math.round(groundColor[0]*0.5)+','+Math.round(groundColor[1]*0.5)+','+Math.round(groundColor[2]*0.5)+')');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, groundY, CW, CH-groundY);
+
+    // IR 포톤(열) 스폰 & 이동
+    photonSpawnAcc += dtSeconds;
+    var spawnInterval = 0.12;
+    while (photonSpawnAcc > spawnInterval){
+      spawnPhoton();
+      photonSpawnAcc -= spawnInterval;
+    }
+
+    for (var p=photons.length-1; p>=0; p--){
+      var ph = photons[p];
+      ph.age += dtSeconds;
+      ph.y += ph.dir * ph.speed * dtSeconds;
+
+      if (ph.state === 'rising' && ph.y <= atmoBottom && ph.y > atmoTop){
+        // 대기층 진입 시 반사 여부 결정 (1회)
+        if (!ph.decided){
+          ph.decided = true;
+          if (Math.random() < bounceRatio){
+            ph.state = 'reflected';
+            ph.dir = 1;
+          } else {
+            ph.state = 'escaping';
+          }
+        }
+      }
+
+      // 화면 밖으로 나가면 제거
+      if (ph.y < atmoTop - 20 && ph.state === 'escaping') { photons.splice(p,1); continue; }
+      if (ph.y > groundY + 4 && ph.state === 'reflected') { photons.splice(p,1); continue; }
+      if (ph.age > 8) { photons.splice(p,1); continue; }
+
+      // 그리기: 위로 향하는 화살표(^) 표시
+      var col = ph.state === 'reflected' ? 'rgba(232,84,62,0.85)' : 'rgba(255,140,110,0.55)';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      var dirSign = ph.dir;
+      ctx.beginPath();
+      ctx.moveTo(ph.x-5, ph.y + dirSign*8);
+      ctx.lineTo(ph.x, ph.y);
+      ctx.lineTo(ph.x+5, ph.y + dirSign*8);
+      ctx.stroke();
+    }
+
+    // 라벨: 대기층
+    ctx.fillStyle = 'rgba(243,239,230,0.55)';
+    ctx.font = '11px "IBM Plex Mono", monospace';
+    ctx.fillText('대기 중 온실가스 층 (밀도 ' + Math.round(density*100) + '%)', 12, atmoTop-8);
+  }
+
+  /* ============ 그래프 캔버스 ============ */
+  var graphCanvas = document.getElementById('graphCanvas');
+  var gctx = graphCanvas.getContext('2d');
+  var GW = graphCanvas.width, GH = graphCanvas.height;
+  var padL = 56, padR = 20, padT = 24, padB = 36;
+
+  function yearToX(year){
+    return padL + (year-1850)/(2100-1850) * (GW-padL-padR);
+  }
+  function tempToY(temp, minT, maxT){
+    var t = (temp - minT) / (maxT - minT);
+    return (GH-padB) - t * (GH-padT-padB);
+  }
+
+  function drawGraph(){
+    gctx.clearRect(0,0,GW,GH);
+
+    // 온도 범위 계산
+    var minT = 0, maxT = 0;
+    historical.forEach(function(d){ var v=getTempAnomaly(d.ppm); if(v<minT)minT=v; if(v>maxT)maxT=v; });
+    ['bau','mitigation'].forEach(function(key){
+      scenarios[key].forEach(function(d){ var v=getTempAnomaly(d.ppm); if(v<minT)minT=v; if(v>maxT)maxT=v; });
+    });
+    minT -= 0.3; maxT += 0.5;
+
+    // 축 그리기
+    gctx.strokeStyle = 'rgba(243,239,230,0.15)';
+    gctx.lineWidth = 1;
+    gctx.font = '11px "IBM Plex Mono", monospace';
+    gctx.fillStyle = 'rgba(243,239,230,0.5)';
+
+    var gridLines = 5;
+    for (var g=0; g<=gridLines; g++){
+      var tv = lerp(minT, maxT, g/gridLines);
+      var gy = tempToY(tv, minT, maxT);
+      gctx.beginPath();
+      gctx.moveTo(padL, gy);
+      gctx.lineTo(GW-padR, gy);
+      gctx.stroke();
+      gctx.fillText((tv>=0?'+':'')+tv.toFixed(1)+'°C', 6, gy+4);
+    }
+
+    var yearTicks = [1850,1900,1950,2000,2024,2050,2100];
+    yearTicks.forEach(function(yr){
+      var gx = yearToX(yr);
+      gctx.fillText(String(yr), gx-14, GH-12);
+    });
+
+    // 0도 기준선 강조
+    var zeroY = tempToY(0, minT, maxT);
+    gctx.strokeStyle = 'rgba(243,239,230,0.35)';
+    gctx.beginPath();
+    gctx.moveTo(padL, zeroY);
+    gctx.lineTo(GW-padR, zeroY);
+    gctx.stroke();
+
+    function drawLine(points, color, dashed){
+      gctx.strokeStyle = color;
+      gctx.lineWidth = 2.4;
+      gctx.setLineDash(dashed ? [6,5] : []);
+      gctx.beginPath();
+      points.forEach(function(pt,idx){
+        var x = yearToX(pt.year);
+        var y = tempToY(getTempAnomaly(pt.ppm), minT, maxT);
+        if (idx===0) gctx.moveTo(x,y); else gctx.lineTo(x,y);
+      });
+      gctx.stroke();
+      gctx.setLineDash([]);
+    }
+
+    drawLine(historical, '#a6ecc0', false);
+    drawLine(historical.slice(-1).concat(scenarios.bau), '#ffb454', true);
+    drawLine(historical.slice(-1).concat(scenarios.mitigation), '#ff8a6b', true);
+
+    // 현재 연도 마커
+    var curPpm = getPPM(state.year, state.scenario);
+    var curTemp = getTempAnomaly(curPpm);
+    var mx = yearToX(state.year);
+    var my = tempToY(curTemp, minT, maxT);
+    gctx.strokeStyle = 'rgba(243,239,230,0.4)';
+    gctx.setLineDash([3,4]);
+    gctx.beginPath();
+    gctx.moveTo(mx, padT);
+    gctx.lineTo(mx, GH-padB);
+    gctx.stroke();
+    gctx.setLineDash([]);
+
+    gctx.fillStyle = '#f3efe6';
+    gctx.beginPath();
+    gctx.arc(mx, my, 5, 0, Math.PI*2);
+    gctx.fill();
+    gctx.strokeStyle = '#0b1220';
+    gctx.lineWidth = 1.5;
+    gctx.stroke();
+  }
+
+  /* ============ 반응형 캔버스 크기 ============ */
+  function fitCanvasToCSS(cv){
+    var ratio = cv.width / cv.height;
+    var displayW = cv.clientWidth || cv.parentElement.clientWidth;
+    cv.style.height = (displayW/ratio) + 'px';
+  }
+
+  /* ============ 메인 루프 ============ */
+  function loop(now){
+    if (lastTime === null) lastTime = now;
+    var dt = Math.min(0.05, (now - lastTime)/1000);
+    lastTime = now;
+
+    tickPlayback(dt);
+
+    var ppm = getPPM(state.year, state.scenario);
+    var temp = getTempAnomaly(ppm);
+
+    drawSim(dt, ppm, temp);
+    drawGraph();
+
+    requestAnimationFrame(loop);
+  }
+
+  function init(){
+    fitCanvasToCSS(canvas);
+    fitCanvasToCSS(graphCanvas);
+    window.addEventListener('resize', function(){
+      fitCanvasToCSS(canvas);
+      fitCanvasToCSS(graphCanvas);
+    });
+    updateReadouts();
+    requestAnimationFrame(loop);
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
